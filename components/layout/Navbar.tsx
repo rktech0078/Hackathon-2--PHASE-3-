@@ -17,11 +17,14 @@ import {
 import { useState, useRef, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
+import { ConfirmationModal } from '@/components/ui/confirmation-modal';
 
 export function Navbar() {
     const { data: session, isPending: loading } = authClient.useSession();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isProfileOpen, setIsProfileOpen] = useState(false);
+    const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
+    const [isSigningOut, setIsSigningOut] = useState(false);
     const profileRef = useRef<HTMLDivElement>(null);
     const router = useRouter();
     const pathname = usePathname();
@@ -39,7 +42,6 @@ export function Navbar() {
 
     // Close menus on route change
     useEffect(() => {
-        // eslint-disable-next-line react-hooks/exhaustive-deps
         setIsMobileMenuOpen(false);
         setIsProfileOpen(false);
     }, [pathname]);
@@ -54,12 +56,22 @@ export function Navbar() {
         return () => { document.body.style.overflow = 'unset'; };
     }, [isMobileMenuOpen]);
 
-    const handleSignOut = async () => {
+    const handleSignOutClick = () => {
+        setIsProfileOpen(false);
+        setIsMobileMenuOpen(false);
+        setShowSignOutConfirm(true);
+    };
+
+    const confirmSignOut = async () => {
+        setIsSigningOut(true);
         try {
             await authClient.signOut();
+            setShowSignOutConfirm(false);
             router.push('/');
         } catch (error) {
             console.error('Error signing out:', error);
+        } finally {
+            setIsSigningOut(false);
         }
     };
 
@@ -94,6 +106,16 @@ export function Navbar() {
 
     return (
         <>
+            <ConfirmationModal
+                isOpen={showSignOutConfirm}
+                onClose={() => setShowSignOutConfirm(false)}
+                onConfirm={confirmSignOut}
+                title="Sign Out"
+                description="Are you sure you want to sign out? You will need to log in again to access your tasks."
+                confirmLabel="Sign Out"
+                isLoading={isSigningOut}
+            />
+
             <header className="sticky top-0 z-[100] w-full border-b border-white/5 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60 shadow-b-sm">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex h-16 items-center justify-between">
@@ -190,7 +212,7 @@ export function Navbar() {
 
                                                     <div className="mt-2 pt-2 border-t border-border/50">
                                                         <button
-                                                            onClick={handleSignOut}
+                                                            onClick={handleSignOutClick}
                                                             className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/10 transition-all group"
                                                         >
                                                             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-destructive/10 text-destructive group-hover:bg-destructive group-hover:text-destructive-foreground transition-colors">
@@ -308,7 +330,7 @@ export function Navbar() {
 
                                         <div className="mt-8 pt-8 border-t border-border/50">
                                             <button
-                                                onClick={handleSignOut}
+                                                onClick={handleSignOutClick}
                                                 className="flex w-full items-center gap-3 px-4 py-3.5 rounded-xl text-base font-medium text-destructive hover:bg-destructive/10 transition-colors"
                                             >
                                                 <LogOut className="h-5 w-5" />

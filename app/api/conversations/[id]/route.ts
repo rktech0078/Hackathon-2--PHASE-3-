@@ -1,6 +1,6 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { conversations } from "@/schemas";
+import { conversations, messages } from "@/schemas";
 import { eq, and } from "drizzle-orm";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
@@ -16,13 +16,22 @@ export async function DELETE(req: Request, props: { params: Promise<{ id: string
     }
 
     try {
-        await db.delete(conversations)
-            .where(
-                and(
-                    eq(conversations.id, params.id),
-                    eq(conversations.userId, session.user.id)
-                )
-            );
+        await db.transaction(async (tx) => {
+            // Delete all messages associated with this conversation first
+            await tx.delete(messages)
+                .where(
+                    eq(messages.conversationId, params.id)
+                );
+
+            // Then delete the conversation itself
+            await tx.delete(conversations)
+                .where(
+                    and(
+                        eq(conversations.id, params.id),
+                        eq(conversations.userId, session.user.id)
+                    )
+                );
+        });
 
         return NextResponse.json({ success: true });
     } catch (error) {
